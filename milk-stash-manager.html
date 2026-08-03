@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Milk Stash Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Archivo:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+:root{
+  --deep:#0A1A21;
+  --panel:#102730;
+  --panel-2:#15323D;
+  --frost:#1F4655;
+  --ice:#79D2E0;
+  --milk:#F5E7C8;
+  --milk-dim:#C9BC9F;
+  --warm:#FFB454;
+  --rose:#F2607A;
+  --text:#E6F1F4;
+  --mute:#8FAAB3;
+  --r:14px;
+  --display:"Bricolage Grotesque","Archivo",system-ui,sans-serif;
+  --body:"Archivo",system-ui,-apple-system,sans-serif;
+  --mono:"DM Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--deep);
+  color:var(--text);
+  font-family:var(--body);
+  font-size:16px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(900px 500px at 80% -10%, rgba(121,210,224,.09), transparent 60%),
+                   radial-gradient(700px 400px at 0% 100%, rgba(245,231,200,.05), transparent 60%);
+  background-attachment:fixed;
+}
+button,input,select,textarea{font-family:inherit;font-size:1rem;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--ice);outline-offset:2px;border-radius:6px}
+
+.app{max-width:720px;margin:0 auto;padding:0 16px 120px}
+
+/* ---------- header ---------- */
+.bar{padding:22px 0 14px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+.wordmark{font-family:var(--display);font-weight:800;font-size:1.35rem;letter-spacing:-.02em;line-height:1}
+.wordmark span{color:var(--ice)}
+.tagline{font-family:var(--mono);font-size:.68rem;color:var(--mute);letter-spacing:.14em;text-transform:uppercase;margin-top:6px}
+.total{text-align:right;line-height:1}
+.total b{font-family:var(--display);font-weight:800;font-size:1.9rem;color:var(--milk);letter-spacing:-.03em}
+.total small{display:block;font-family:var(--mono);font-size:.65rem;color:var(--mute);text-transform:uppercase;letter-spacing:.12em;margin-top:5px}
+
+.shelf{height:10px;border-radius:99px;background:var(--panel);border:1px solid var(--frost);overflow:hidden;display:flex}
+.shelf i{display:block;height:100%}
+.shelf .s-deep{background:var(--ice)}
+.shelf .s-freezer{background:#4FA9BB}
+.shelf .s-fridge{background:var(--milk)}
+.shelf-key{display:flex;gap:14px;margin:8px 0 0;font-family:var(--mono);font-size:.66rem;color:var(--mute);flex-wrap:wrap}
+.shelf-key i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:5px}
+
+/* ---------- tabs ---------- */
+nav.tabs{display:flex;gap:4px;margin:18px 0 20px;background:var(--panel);border:1px solid var(--frost);border-radius:99px;padding:4px;overflow-x:auto;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{
+  flex:1 0 auto;border:0;background:transparent;color:var(--mute);
+  padding:9px 14px;border-radius:99px;font-weight:600;font-size:.85rem;white-space:nowrap;
+  transition:background .18s ease,color .18s ease;
+}
+nav.tabs button[aria-selected="true"]{background:var(--ice);color:#06222B}
+nav.tabs button:hover:not([aria-selected="true"]){color:var(--text)}
+
+.view{display:none}
+.view.on{display:block;animation:rise .28s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+h2.sec{font-family:var(--mono);font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin:26px 0 12px;font-weight:400;display:flex;align-items:center;gap:10px}
+h2.sec::after{content:"";flex:1;height:1px;background:var(--frost)}
+
+/* ---------- the bag (signature) ---------- */
+.bag{
+  position:relative;background:linear-gradient(180deg,var(--panel-2),var(--panel));
+  border:1px solid var(--frost);border-radius:6px 6px 20px 20px;padding:0 0 18px;overflow:hidden;
+  clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 14px,100% 100%,0 100%,0 14px);
+}
+.bag .zip{height:26px;border-bottom:1px dashed var(--frost);display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:rgba(121,210,224,.07)}
+.bag .zip span{font-family:var(--mono);font-size:.6rem;letter-spacing:.2em;color:var(--ice);text-transform:uppercase}
+.bag .fill{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(245,231,200,.20),rgba(245,231,200,.09));border-top:1px solid rgba(245,231,200,.35);pointer-events:none;transition:height .5s cubic-bezier(.2,.8,.2,1)}
+.bag .inner{position:relative;padding:18px 16px 0;display:flex;gap:16px;align-items:flex-start}
+.bag .amt{font-family:var(--display);font-weight:800;font-size:3.2rem;line-height:.9;letter-spacing:-.04em;color:var(--milk)}
+.bag .amt em{font-style:normal;font-size:1rem;font-family:var(--mono);color:var(--milk-dim);margin-left:6px}
+.bag .meta{font-family:var(--mono);font-size:.75rem;color:var(--mute);margin-top:10px}
+.bag .meta b{color:var(--text);font-weight:500}
+.bag .qr{margin-left:auto;background:#fff;padding:6px;border-radius:6px;line-height:0}
+.bag .qr img,.bag .qr canvas{display:block;width:72px;height:72px}
+.bag .acts{display:flex;gap:8px;padding:16px 16px 0;position:relative;flex-wrap:wrap}
+
+.flag{position:absolute;top:34px;right:0;background:var(--warm);color:#2A1600;font-family:var(--mono);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;padding:4px 12px 4px 10px;border-radius:99px 0 0 99px;z-index:2;font-weight:500}
+
+/* ---------- buttons ---------- */
+.btn{border:1px solid var(--frost);background:var(--panel-2);color:var(--text);padding:10px 16px;border-radius:99px;font-weight:600;font-size:.85rem;transition:transform .12s ease,background .18s ease}
+.btn:hover{background:var(--frost)}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--milk);color:#22190A;border-color:var(--milk)}
+.btn.primary:hover{background:#fff2d8}
+.btn.ice{background:var(--ice);color:#06222B;border-color:var(--ice)}
+.btn.ice:hover{background:#9fe2ec}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--rose);border-color:rgba(242,96,122,.4)}
+.btn.wide{width:100%;justify-content:center;text-align:center}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* ---------- cards / rows ---------- */
+.card{background:var(--panel);border:1px solid var(--frost);border-radius:var(--r);padding:16px}
+.row{
+  display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--frost);
+  border-radius:var(--r);padding:12px 14px;margin-bottom:8px;transition:border-color .18s ease,background .18s ease;
+  width:100%;text-align:left;
+}
+.row:hover{border-color:var(--ice);background:var(--panel-2)}
+.row .vol{font-family:var(--display);font-weight:800;font-size:1.5rem;letter-spacing:-.03em;color:var(--milk);min-width:74px}
+.row .vol em{font-style:normal;font-size:.7rem;font-family:var(--mono);color:var(--milk-dim);margin-left:3px}
+.row .lines{flex:1;min-width:0}
+.row .l1{font-size:.9rem;font-weight:500}
+.row .l2{font-family:var(--mono);font-size:.72rem;color:var(--mute);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill{font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;padding:4px 9px;border-radius:99px;border:1px solid;white-space:nowrap}
+.p-ok{color:var(--ice);border-color:rgba(121,210,224,.35);background:rgba(121,210,224,.08)}
+.p-soon{color:var(--warm);border-color:rgba(255,180,84,.35);background:rgba(255,180,84,.08)}
+.p-old{color:var(--rose);border-color:rgba(242,96,122,.4);background:rgba(242,96,122,.08)}
+.p-thaw{color:var(--milk);border-color:rgba(245,231,200,.35);background:rgba(245,231,200,.08)}
+
+.alert{border-left:3px solid var(--warm);background:rgba(255,180,84,.07);border-radius:0 10px 10px 0;padding:12px 14px;margin-bottom:8px;font-size:.9rem}
+.alert.bad{border-color:var(--rose);background:rgba(242,96,122,.07)}
+.alert b{font-weight:600}
+
+.empty{text-align:center;padding:44px 20px;border:1px dashed var(--frost);border-radius:var(--r);color:var(--mute)}
+.empty p{margin:0 0 16px}
+.empty strong{display:block;color:var(--text);font-family:var(--display);font-weight:600;font-size:1.15rem;margin-bottom:6px}
+
+/* ---------- forms ---------- */
+label.f{display:block;margin-bottom:14px}
+label.f > span{display:block;font-family:var(--mono);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin-bottom:6px}
+input[type=text],input[type=number],input[type=date],input[type=time],select,textarea{
+  width:100%;background:var(--deep);border:1px solid var(--frost);border-radius:10px;padding:11px 13px;color:var(--text);
+}
+input:focus,select:focus,textarea:focus{border-color:var(--ice);outline:none}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:1px solid var(--frost);background:var(--panel-2);border-radius:99px;padding:8px 14px;font-family:var(--mono);font-size:.8rem;color:var(--mute)}
+.chip[aria-pressed="true"]{background:var(--ice);color:#06222B;border-color:var(--ice)}
+.seg{display:flex;border:1px solid var(--frost);border-radius:99px;overflow:hidden}
+.seg button{flex:1;border:0;background:transparent;color:var(--mute);padding:9px;font-size:.82rem;font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--panel-2);color:var(--ice)}
+
+/* ---------- scan ---------- */
+#reader{border-radius:var(--r);overflow:hidden;border:1px solid var(--frost);background:#000;min-height:60px}
+#reader video{width:100%!important;display:block}
+.scanhint{font-family:var(--mono);font-size:.75rem;color:var(--mute);text-align:center;margin:12px 0}
+
+/* ---------- chart ---------- */
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:8px}
+.stat{background:var(--panel);border:1px solid var(--frost);border-radius:var(--r);padding:14px}
+.stat b{display:block;font-family:var(--display);font-weight:800;font-size:1.7rem;letter-spacing:-.03em;color:var(--ice);line-height:1.1}
+.stat.milk b{color:var(--milk)}
+.stat small{font-family:var(--mono);font-size:.63rem;letter-spacing:.11em;text-transform:uppercase;color:var(--mute);display:block;margin-top:5px}
+.chartwrap{background:var(--panel);border:1px solid var(--frost);border-radius:var(--r);padding:16px 14px 10px}
+.chart{display:flex;align-items:flex-end;gap:3px;height:150px}
+.chart .b{flex:1;background:linear-gradient(180deg,var(--ice),rgba(121,210,224,.25));border-radius:3px 3px 0 0;min-height:2px;position:relative;transition:height .4s ease}
+.chart .b.zero{background:var(--frost)}
+.chart .b:hover{background:var(--milk)}
+.axis{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;color:var(--mute);margin-top:8px}
+
+/* ---------- sheet ---------- */
+.scrim{position:fixed;inset:0;background:rgba(4,14,18,.72);backdrop-filter:blur(3px);display:none;z-index:40;align-items:flex-end;justify-content:center}
+.scrim.on{display:flex}
+.sheet{background:var(--deep);border:1px solid var(--frost);border-radius:20px 20px 0 0;width:100%;max-width:720px;padding:18px 16px 28px;max-height:88vh;overflow:auto;animation:up .26s cubic-bezier(.2,.9,.3,1) both}
+@keyframes up{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
+.grab{width:38px;height:4px;border-radius:9px;background:var(--frost);margin:0 auto 16px}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--milk);color:#22190A;padding:11px 20px;border-radius:99px;font-weight:600;font-size:.88rem;opacity:0;pointer-events:none;transition:.25s ease;z-index:60;max-width:90vw;text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%)}
+
+.foot{font-family:var(--mono);font-size:.68rem;color:var(--mute);text-align:center;margin-top:34px;line-height:1.7}
+
+/* ---------- labels + print ---------- */
+.lbl-pick{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--frost);border-radius:10px;margin-bottom:6px;background:var(--panel)}
+.lbl-pick input{width:20px;height:20px;accent-color:var(--ice);flex:none}
+#print-root{display:none}
+.sheetgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.label{border:1px dashed #999;border-radius:6px;padding:8px;display:flex;gap:8px;align-items:center;background:#fff;color:#000;break-inside:avoid}
+.label .qr{line-height:0}
+.label .qr img,.label .qr canvas{width:58px;height:58px;display:block}
+.label .t{font-family:var(--mono);font-size:9px;line-height:1.45;min-width:0}
+.label .t .big{font-family:var(--body);font-weight:600;font-size:15px;line-height:1.1;margin-bottom:3px}
+
+@media print{
+  body{background:#fff}
+  .app,.scrim,.toast{display:none!important}
+  #print-root{display:block!important;padding:10px}
+  .sheetgrid{grid-template-columns:repeat(3,1fr);gap:6px}
+}
+@media (max-width:480px){
+  .bag .amt{font-size:2.6rem}
+  .stats{grid-template-columns:1fr 1fr}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms!important;transition-duration:.001ms!important}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="bar">
+    <div>
+      <div class="wordmark">MILK <span>STASH</span></div>
+      <div class="tagline">Freezer inventory</div>
+    </div>
+    <div class="total"><b id="totalAmt">0</b><small id="totalSub">nothing stored yet</small></div>
+  </header>
+
+  <div class="shelf" id="shelf"></div>
+  <div class="shelf-key">
+    <span><i style="background:var(--ice)"></i>Deep freezer</span>
+    <span><i style="background:#4FA9BB"></i>Freezer</span>
+    <span><i style="background:var(--milk)"></i>Fridge</span>
+  </div>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-view="stash" aria-selected="true">Stash</button>
+    <button role="tab" data-view="add" aria-selected="false">Log a bag</button>
+    <button role="tab" data-view="scan" aria-selected="false">Scan</button>
+    <button role="tab" data-view="trends" aria-selected="false">Trends</button>
+    <button role="tab" data-view="labels" aria-selected="false">Labels</button>
+    <button role="tab" data-view="settings" aria-selected="false">Settings</button>
+  </nav>
+
+  <!-- STASH -->
+  <section class="view on" id="v-stash">
+    <div id="alerts"></div>
+    <div id="nextUp"></div>
+    <h2 class="sec">Use in this order</h2>
+    <div class="chips" style="margin-bottom:14px">
+      <button class="chip" data-filter="all" aria-pressed="true">All</button>
+      <button class="chip" data-filter="deep" aria-pressed="false">Deep freezer</button>
+      <button class="chip" data-filter="freezer" aria-pressed="false">Freezer</button>
+      <button class="chip" data-filter="fridge" aria-pressed="false">Fridge</button>
+      <button class="chip" data-filter="thawing" aria-pressed="false">Thawing</button>
+    </div>
+    <div id="list"></div>
+  </section>
+
+  <!-- ADD -->
+  <section class="view" id="v-add">
+    <h2 class="sec">New bag</h2>
+    <div class="card">
+      <label class="f"><span>How much</span>
+        <div class="chips" id="quickAmt" style="margin-bottom:10px"></div>
+        <input type="number" id="fAmt" step="0.1" min="0" placeholder="Amount">
+      </label>
+      <div class="grid2">
+        <label class="f"><span>Date pumped</span><input type="date" id="fDate"></label>
+        <label class="f"><span>Time</span><input type="time" id="fTime"></label>
+      </div>
+      <label class="f"><span>Where it goes</span>
+        <select id="fLoc">
+          <option value="deep">Deep freezer (chest / standalone)</option>
+          <option value="freezer" selected>Freezer (fridge-top)</option>
+          <option value="fridge">Fridge</option>
+        </select>
+      </label>
+      <label class="f"><span>Note (optional)</span><input type="text" id="fNote" placeholder="e.g. left side, after dinner"></label>
+      <button class="btn primary wide" id="saveBag">Save bag</button>
+    </div>
+    <p class="foot" style="margin-top:14px">Each bag gets its own code. Print the label from the Labels tab and stick it on before it goes in.</p>
+  </section>
+
+  <!-- SCAN -->
+  <section class="view" id="v-scan">
+    <h2 class="sec">Point at a label</h2>
+    <div id="reader"></div>
+    <div class="scanhint" id="scanMsg">Camera is off.</div>
+    <button class="btn ice wide" id="camBtn">Turn on camera</button>
+    <h2 class="sec">Or type the code</h2>
+    <div class="card">
+      <label class="f"><span>Bag code</span><input type="text" id="manualCode" placeholder="MS-260803-K7Q" autocomplete="off"></label>
+      <button class="btn wide" id="manualGo">Find bag</button>
+    </div>
+    <p class="foot">Some browsers block the camera inside an embedded app. If it will not start, type the code printed under the QR square.</p>
+  </section>
+
+  <!-- TRENDS -->
+  <section class="view" id="v-trends">
+    <h2 class="sec">Daily output</h2>
+    <div class="stats">
+      <div class="stat milk"><b id="sToday">0</b><small>Pumped today</small></div>
+      <div class="stat"><b id="sAvg">0</b><small>Daily average (7d)</small></div>
+      <div class="stat"><b id="sBest">0</b><small>Best day (30d)</small></div>
+      <div class="stat milk"><b id="sDays">0</b><small>Days of stash left</small></div>
+    </div>
+    <div class="chartwrap">
+      <div class="chart" id="chart"></div>
+      <div class="axis"><span id="axL">30 days ago</span><span id="axR">Today</span></div>
+    </div>
+    <h2 class="sec">Totals</h2>
+    <div id="totals"></div>
+  </section>
+
+  <!-- LABELS -->
+  <section class="view" id="v-labels">
+    <h2 class="sec">Printable labels</h2>
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn ghost" id="selNew">Select unprinted</button>
+        <button class="btn ghost" id="selAll">Select all</button>
+        <button class="btn ghost" id="selNone">Clear</button>
+      </div>
+      <button class="btn primary wide" id="printBtn" style="margin-top:12px">Print selected labels</button>
+    </div>
+    <div id="lblList"></div>
+    <p class="foot">Labels print three across on plain paper. Cut them out and tape one to each bag, code side up.</p>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="view" id="v-settings">
+    <h2 class="sec">Units</h2>
+    <div class="seg" id="unitSeg" style="margin-bottom:6px">
+      <button data-unit="oz" aria-pressed="true">Ounces</button>
+      <button data-unit="ml" aria-pressed="false">Millilitres</button>
+    </div>
+    <h2 class="sec">How long milk keeps</h2>
+    <div class="card">
+      <div class="grid2">
+        <label class="f"><span>Fridge (days)</span><input type="number" id="cFridge" min="1"></label>
+        <label class="f"><span>Freezer (days)</span><input type="number" id="cFreezer" min="1"></label>
+        <label class="f"><span>Deep freezer (days)</span><input type="number" id="cDeep" min="1"></label>
+        <label class="f"><span>Warn me this early (days)</span><input type="number" id="cWarn" min="1"></label>
+      </div>
+      <label class="f"><span>Baby drinks per day</span><input type="number" id="cUse" step="0.5" min="0"></label>
+      <button class="btn wide" id="saveCfg">Save settings</button>
+      <p class="foot" style="text-align:left;margin-top:14px">Defaults follow common storage guidance: 4 days in the fridge, 6 months in a freezer, 12 months in a deep freezer. Thawed milk gets 24 hours. Check with your own doctor or midwife, since advice differs for preterm and hospital use.</p>
+    </div>
+    <h2 class="sec">Your data</h2>
+    <div class="card">
+      <p style="margin-top:0;color:var(--mute);font-size:.88rem">Everything is saved on this device only.</p>
+      <button class="btn danger wide" id="wipe">Delete everything</button>
+    </div>
+  </section>
+
+  <p class="foot">Milk Stash Manager · <span id="bagCount">0</span> bags tracked</p>
+</div>
+
+<div class="scrim" id="scrim"><div class="sheet" id="sheet"><div class="grab"></div><div id="sheetBody"></div></div></div>
+<div class="toast" id="toast"></div>
+<div id="print-root"><div class="sheetgrid" id="printGrid"></div></div>
+
+<script>
+(function(){
+"use strict";
+
+var KEY = "milkstash:v1";
+var ML_OZ = 29.5735;
+var state = {
+  bags: [],
+  cfg: { unit:"oz", fridge:4, freezer:180, deep:365, warn:14, dailyUse:25 }
+};
+var memoryOnly = false;
+var filter = "all";
+var picked = {};
+var scanner = null;
+
+/* ---------------- storage ---------------- */
+function hasStore(){ return typeof window.storage !== "undefined" && window.storage; }
+
+async function load(){
+  if(!hasStore()){ memoryOnly = true; return; }
+  try{
+    var r = await window.storage.get(KEY);
+    if(r && r.value){
+      var d = JSON.parse(r.value);
+      if(d.bags) state.bags = d.bags;
+      if(d.cfg) state.cfg = Object.assign(state.cfg, d.cfg);
+    }
+  }catch(e){ /* first run: no key yet */ }
+}
+async function save(){
+  if(!hasStore()){ memoryOnly = true; return; }
+  try{ await window.storage.set(KEY, JSON.stringify(state)); }
+  catch(e){ toast("Could not save. Changes may be lost."); }
+}
+
+/* ---------------- helpers ---------------- */
+function $(s){ return document.querySelector(s); }
+function el(tag, cls, html){ var e=document.createElement(tag); if(cls) e.className=cls; if(html!=null) e.innerHTML=html; return e; }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+
+function toast(msg){
+  var t=$("#toast"); t.textContent=msg; t.classList.add("on");
+  clearTimeout(t._t); t._t=setTimeout(function(){ t.classList.remove("on"); },2600);
+}
+
+function unit(){ return state.cfg.unit; }
+function toMl(v){ return unit()==="oz" ? v*ML_OZ : v; }
+function num(ml){ return unit()==="oz" ? Math.round(ml/ML_OZ*10)/10 : Math.round(ml); }
+function amt(ml){ return num(ml) + " " + unit(); }
+function unitLabel(){ return unit()==="oz" ? "oz" : "ml"; }
+
+function newId(d){
+  var dt = d ? new Date(d) : new Date();
+  var y = String(dt.getFullYear()).slice(2);
+  var m = String(dt.getMonth()+1).padStart(2,"0");
+  var day = String(dt.getDate()).padStart(2,"0");
+  var abc = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  var tail = "";
+  for(var i=0;i<3;i++) tail += abc[Math.floor(Math.random()*abc.length)];
+  return "MS-" + y + m + day + "-" + tail;
+}
+
+var LIMIT = { fridge:"fridge", freezer:"freezer", deep:"deep" };
+function limitDays(loc){ return Number(state.cfg[LIMIT[loc]] || 30); }
+function locName(loc){ return loc==="deep" ? "Deep freezer" : loc==="freezer" ? "Freezer" : "Fridge"; }
+
+function expiryOf(b){ return new Date(new Date(b.pumpedAt).getTime() + limitDays(b.location)*86400000); }
+function daysLeft(b){
+  if(b.status==="thawing"){
+    var end = new Date(b.thawStart).getTime() + 86400000;
+    return (end - Date.now())/86400000;
+  }
+  return (expiryOf(b).getTime() - Date.now())/86400000;
+}
+function ageDays(b){ return Math.floor((Date.now() - new Date(b.pumpedAt).getTime())/86400000); }
+
+function stored(){ return state.bags.filter(function(b){ return b.status==="stored" || b.status==="thawing"; }); }
+function fifo(){
+  return stored().slice().sort(function(a,b){ return new Date(a.pumpedAt) - new Date(b.pumpedAt); });
+}
+
+function tier(b){
+  var d = daysLeft(b);
+  if(d <= 0) return "old";
+  if(b.status==="thawing") return "thaw";
+  if(d <= Number(state.cfg.warn)) return "soon";
+  return "ok";
+}
+function tierText(b){
+  var d = daysLeft(b);
+  if(b.status==="thawing"){
+    if(d<=0) return "Thawed too long";
+    var h = Math.max(1, Math.round(d*24));
+    return "Use within " + h + "h";
+  }
+  if(d<=0) return "Past " + limitDays(b.location) + " days";
+  if(d<1) return "Use today";
+  if(d<45) return Math.ceil(d) + " days left";
+  return Math.round(d/30) + " months left";
+}
+function fmtDate(iso){
+  var d = new Date(iso);
+  return d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}) + ", " +
+         d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});
+}
+function shortDate(iso){
+  var d = new Date(iso);
+  return d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+}
+function dayKey(iso){
+  var d = new Date(iso);
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+
+/* ---------------- QR ---------------- */
+function qrInto(box, text, size){
+  box.innerHTML = "";
+  if(typeof QRCode === "undefined"){
+    box.style.background = "#fff";
+    box.style.color = "#000";
+    box.innerHTML = '<div style="font:9px monospace;width:'+size+'px;height:'+size+'px;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px;line-height:1.3">'+esc(text)+'</div>';
+    return;
+  }
+  try{
+    new QRCode(box, { text:text, width:size, height:size, colorDark:"#000000", colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.M });
+  }catch(e){
+    box.textContent = text;
+  }
+}
+
+/* ---------------- render ---------------- */
+function render(){
+  renderHeader();
+  renderAlerts();
+  renderNext();
+  renderList();
+  renderTrends();
+  renderLabels();
+  $("#bagCount").textContent = state.bags.length;
+}
+
+function renderHeader(){
+  var s = stored();
+  var total = s.reduce(function(t,b){ return t + b.ml; },0);
+  $("#totalAmt").textContent = total ? num(total) : "0";
+  $("#totalSub").textContent = total ? unitLabel()+" in "+s.length+" bags" : "nothing stored yet";
+
+  var by = { deep:0, freezer:0, fridge:0 };
+  s.forEach(function(b){ by[b.location] = (by[b.location]||0) + b.ml; });
+  var shelf = $("#shelf");
+  shelf.innerHTML = "";
+  if(!total){ shelf.style.opacity = ".4"; return; }
+  shelf.style.opacity = "1";
+  ["deep","freezer","fridge"].forEach(function(k){
+    if(!by[k]) return;
+    var i = el("i","s-"+k);
+    i.style.width = (by[k]/total*100) + "%";
+    shelf.appendChild(i);
+  });
+}
+
+function renderAlerts(){
+  var box = $("#alerts"); box.innerHTML = "";
+  var s = stored();
+  var past = s.filter(function(b){ return tier(b)==="old"; });
+  var soon = s.filter(function(b){ return tier(b)==="soon"; });
+  var thaw = s.filter(function(b){ return b.status==="thawing" && daysLeft(b)>0; });
+
+  if(past.length){
+    var v = past.reduce(function(t,b){ return t+b.ml; },0);
+    box.appendChild(el("div","alert bad","<b>"+past.length+" bag"+(past.length>1?"s":"")+" past the date.</b> That is "+amt(v)+". Check them and mark used or tossed."));
+  }
+  if(thaw.length){
+    box.appendChild(el("div","alert","<b>"+thaw.length+" bag"+(thaw.length>1?"s":"")+" thawing.</b> Thawed milk keeps about 24 hours in the fridge."));
+  }
+  if(soon.length){
+    box.appendChild(el("div","alert","<b>"+soon.length+" bag"+(soon.length>1?"s":"")+" due soon.</b> Move them to the front of the bin."));
+  }
+}
+
+function renderNext(){
+  var box = $("#nextUp"); box.innerHTML = "";
+  var q = fifo();
+  if(!q.length){
+    var e = el("div","empty");
+    e.innerHTML = "<strong>Nothing in the freezer yet</strong><p>Log your first bag and we will keep it in date order for you.</p>";
+    var b = el("button","btn primary","Log a bag");
+    b.onclick = function(){ go("add"); };
+    e.appendChild(b);
+    box.appendChild(e);
+    return;
+  }
+  var bag = q[0];
+  box.appendChild(bagCard(bag, true));
+}
+
+function bagCard(b, hero){
+  var wrap = el("div","bag");
+  var pct = Math.max(12, Math.min(100, (b.ml/ (6*ML_OZ)) * 100));
+
+  var zip = el("div","zip");
+  zip.innerHTML = '<span>'+esc(b.id)+'</span><span>'+esc(locName(b.location))+'</span>';
+  wrap.appendChild(zip);
+
+  var fill = el("div","fill");
+  fill.style.height = pct + "%";
+  wrap.appendChild(fill);
+
+  if(hero) wrap.appendChild(el("div","flag","Use this next"));
+
+  var inner = el("div","inner");
+  var left = el("div");
+  left.innerHTML = '<div class="amt">'+num(b.ml)+'<em>'+unitLabel()+'</em></div>' +
+    '<div class="meta">Pumped <b>'+esc(shortDate(b.pumpedAt))+'</b> · '+ageDays(b)+' days ago<br>'+
+    esc(tierText(b))+(b.note?'<br>'+esc(b.note):'')+'</div>';
+  inner.appendChild(left);
+  var qr = el("div","qr");
+  inner.appendChild(qr);
+  wrap.appendChild(inner);
+  qrInto(qr, "MILKSTASH:"+b.id, 72);
+
+  var acts = el("div","acts");
+  var use = el("button","btn primary","Mark used");
+  use.onclick = function(){ setStatus(b.id,"used"); };
+  acts.appendChild(use);
+  if(b.status==="stored" && b.location!=="fridge"){
+    var th = el("button","btn","Start thawing");
+    th.onclick = function(){ startThaw(b.id); };
+    acts.appendChild(th);
+  }
+  var more = el("button","btn ghost","Details");
+  more.onclick = function(){ openSheet(b.id); };
+  acts.appendChild(more);
+  wrap.appendChild(acts);
+  return wrap;
+}
+
+function renderList(){
+  var box = $("#list"); box.innerHTML = "";
+  var q = fifo();
+  if(filter==="thawing") q = q.filter(function(b){ return b.status==="thawing"; });
+  else if(filter!=="all") q = q.filter(function(b){ return b.location===filter; });
+
+  if(!q.length){ box.appendChild(el("div","empty","<p>No bags here.</p>")); return; }
+
+  q.forEach(function(b,i){
+    var r = el("button","row");
+    var t = tier(b);
+    r.innerHTML =
+      '<div class="vol">'+num(b.ml)+'<em>'+unitLabel()+'</em></div>'+
+      '<div class="lines"><div class="l1">'+esc(shortDate(b.pumpedAt))+(i===0?" · first out":"")+'</div>'+
+      '<div class="l2">'+esc(b.id)+' · '+esc(locName(b.location))+'</div></div>'+
+      '<span class="pill p-'+t+'">'+esc(tierText(b))+'</span>';
+    r.onclick = function(){ openSheet(b.id); };
+    box.appendChild(r);
+  });
+}
+
+/* ---------------- detail sheet ---------------- */
+function openSheet(id){
+  var b = state.bags.filter(function(x){ return x.id===id; })[0];
+  if(!b){ toast("No bag with that code."); return; }
+  var body = $("#sheetBody");
+  body.innerHTML = "";
+  body.appendChild(bagCard(b,false));
+
+  var info = el("div","card");
+  info.style.marginTop = "12px";
+  info.innerHTML =
+    '<div class="l2" style="font-family:var(--mono);font-size:.78rem;color:var(--mute);line-height:2">'+
+    'Code · <b style="color:var(--text)">'+esc(b.id)+'</b><br>'+
+    'Pumped · <b style="color:var(--text)">'+esc(fmtDate(b.pumpedAt))+'</b><br>'+
+    'Stored in · <b style="color:var(--text)">'+esc(locName(b.location))+'</b><br>'+
+    'Good until · <b style="color:var(--text)">'+esc(shortDate(expiryOf(b).toISOString()))+'</b><br>'+
+    'Status · <b style="color:var(--text)">'+esc(b.status)+'</b></div>';
+  body.appendChild(info);
+
+  var acts = el("div");
+  acts.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;margin-top:12px";
+  if(b.status!=="used" && b.status!=="tossed"){
+    var used = el("button","btn primary","Mark used");
+    used.onclick = function(){ setStatus(b.id,"used"); closeSheet(); };
+    acts.appendChild(used);
+    var toss = el("button","btn danger","Throw away");
+    toss.onclick = function(){ setStatus(b.id,"tossed"); closeSheet(); };
+    acts.appendChild(toss);
+  } else {
+    var back = el("button","btn","Put back in stash");
+    back.onclick = function(){ setStatus(b.id,"stored"); closeSheet(); };
+    acts.appendChild(back);
+  }
+  var del = el("button","btn ghost","Delete record");
+  del.onclick = function(){
+    state.bags = state.bags.filter(function(x){ return x.id!==b.id; });
+    save(); render(); closeSheet(); toast("Bag deleted.");
+  };
+  acts.appendChild(del);
+  body.appendChild(acts);
+
+  $("#scrim").classList.add("on");
+}
+function closeSheet(){ $("#scrim").classList.remove("on"); }
+
+function setStatus(id, st){
+  state.bags.forEach(function(b){
+    if(b.id===id){
+      b.status = st;
+      if(st==="used" || st==="tossed") b.closedAt = new Date().toISOString();
+      if(st==="stored"){ b.closedAt = null; b.thawStart = null; }
+    }
+  });
+  save(); render();
+  toast(st==="used" ? "Marked used. Nice work." : st==="tossed" ? "Tossed." : "Back in the stash.");
+}
+function startThaw(id){
+  state.bags.forEach(function(b){
+    if(b.id===id){ b.status="thawing"; b.thawStart=new Date().toISOString(); b.location="fridge"; }
+  });
+  save(); render(); toast("Thawing. Use it within 24 hours.");
+}
+
+/* ---------------- add ---------------- */
+function setupAdd(){
+  var qa = $("#quickAmt");
+  function drawQuick(){
+    qa.innerHTML = "";
+    var opts = unit()==="oz" ? [2,3,4,5,6] : [60,90,120,150,180];
+    opts.forEach(function(v){
+      var c = el("button","chip", v+" "+unitLabel());
+      c.type = "button";
+      c.onclick = function(){ $("#fAmt").value = v; };
+      qa.appendChild(c);
+    });
+  }
+  drawQuick();
+  window._drawQuick = drawQuick;
+
+  var now = new Date();
+  $("#fDate").value = now.toISOString().slice(0,10);
+  $("#fTime").value = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+
+  $("#saveBag").onclick = function(){
+    var v = parseFloat($("#fAmt").value);
+    if(!v || v<=0){ toast("Add how much milk is in the bag."); $("#fAmt").focus(); return; }
+    var d = $("#fDate").value || new Date().toISOString().slice(0,10);
+    var t = $("#fTime").value || "12:00";
+    var when = new Date(d + "T" + t);
+    if(isNaN(when.getTime())) when = new Date();
+    var bag = {
+      id: newId(when),
+      ml: toMl(v),
+      pumpedAt: when.toISOString(),
+      location: $("#fLoc").value,
+      note: $("#fNote").value.trim(),
+      status: "stored",
+      printed: false,
+      createdAt: new Date().toISOString()
+    };
+    state.bags.push(bag);
+    save(); render();
+    $("#fAmt").value = ""; $("#fNote").value = "";
+    var n = new Date();
+    $("#fTime").value = String(n.getHours()).padStart(2,"0")+":"+String(n.getMinutes()).padStart(2,"0");
+    toast("Saved as " + bag.id);
+    go("stash");
+  };
+}
+
+/* ---------------- scan ---------------- */
+function handleCode(raw){
+  var code = String(raw).trim().toUpperCase().replace(/^MILKSTASH:/,"");
+  var b = state.bags.filter(function(x){ return x.id.toUpperCase()===code; })[0];
+  if(!b){ toast("No bag matches " + code); return; }
+  openSheet(b.id);
+}
+
+function setupScan(){
+  $("#manualGo").onclick = function(){
+    var v = $("#manualCode").value.trim();
+    if(!v){ toast("Type the code under the QR square."); return; }
+    handleCode(v);
+  };
+  $("#manualCode").addEventListener("keydown", function(e){ if(e.key==="Enter") $("#manualGo").click(); });
+
+  $("#camBtn").onclick = function(){
+    if(scanner){ stopCam(); return; }
+    if(typeof Html5Qrcode === "undefined"){
+      $("#scanMsg").textContent = "The scanner did not load. Type the code instead.";
+      return;
+    }
+    $("#scanMsg").textContent = "Starting camera…";
+    scanner = new Html5Qrcode("reader");
+    scanner.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 220, height: 220 } },
+      function(text){ stopCam(); handleCode(text); },
+      function(){}
+    ).then(function(){
+      $("#scanMsg").textContent = "Hold the label steady in the box.";
+      $("#camBtn").textContent = "Turn off camera";
+    }).catch(function(){
+      scanner = null;
+      $("#scanMsg").textContent = "The camera would not start. Your browser may block it here. Type the code below instead.";
+      $("#camBtn").textContent = "Try camera again";
+    });
+  };
+}
+function stopCam(){
+  if(!scanner) return;
+  var s = scanner; scanner = null;
+  s.stop().then(function(){ s.clear(); }).catch(function(){});
+  $("#camBtn").textContent = "Turn on camera";
+  $("#scanMsg").textContent = "Camera is off.";
+}
+
+/* ---------------- trends ---------------- */
+function renderTrends(){
+  var days = 30, today = new Date(); today.setHours(0,0,0,0);
+  var buckets = [], labels = [];
+  for(var i=days-1;i>=0;i--){
+    var d = new Date(today.getTime() - i*86400000);
+    labels.push(dayKey(d.toISOString()));
+    buckets.push(0);
+  }
+  var map = {};
+  labels.forEach(function(k,i){ map[k]=i; });
+  state.bags.forEach(function(b){
+    var k = dayKey(b.pumpedAt);
+    if(map[k]!==undefined) buckets[map[k]] += b.ml;
+  });
+
+  var max = Math.max.apply(null, buckets.concat([1]));
+  var chart = $("#chart"); chart.innerHTML = "";
+  buckets.forEach(function(v,i){
+    var bar = el("div","b" + (v?"":" zero"));
+    bar.style.height = v ? Math.max(3,(v/max*100)) + "%" : "3px";
+    bar.title = labels[i] + ": " + (v?amt(v):"nothing");
+    chart.appendChild(bar);
+  });
+
+  var last7 = buckets.slice(-7).reduce(function(a,b){ return a+b; },0);
+  $("#sToday").textContent = num(buckets[buckets.length-1]);
+  $("#sAvg").textContent = num(last7/7);
+  $("#sBest").textContent = num(max===1?0:max);
+
+  var totalStored = stored().reduce(function(t,b){ return t+b.ml; },0);
+  var perDayMl = toMl(Number(state.cfg.dailyUse||0));
+  $("#sDays").textContent = perDayMl>0 ? Math.floor(totalStored/perDayMl) : "–";
+
+  $("#axL").textContent = shortDate(new Date(today.getTime()-(days-1)*86400000).toISOString());
+  $("#axR").textContent = "Today";
+
+  var usedMl = state.bags.filter(function(b){ return b.status==="used"; }).reduce(function(t,b){ return t+b.ml; },0);
+  var allMl = state.bags.reduce(function(t,b){ return t+b.ml; },0);
+  var t = $("#totals");
+  t.innerHTML = "";
+  [["Pumped all time", amt(allMl)],
+   ["In the freezer now", amt(totalStored)],
+   ["Fed to baby", amt(usedMl)],
+   ["Bags logged", String(state.bags.length)]].forEach(function(p){
+    var r = el("div","row");
+    r.style.cursor = "default";
+    r.innerHTML = '<div class="lines"><div class="l1">'+p[0]+'</div></div><span class="pill p-ok">'+esc(p[1])+'</span>';
+    t.appendChild(r);
+  });
+}
+
+/* ---------------- labels ---------------- */
+function renderLabels(){
+  var box = $("#lblList"); box.innerHTML = "";
+  var q = fifo();
+  if(!q.length){ box.appendChild(el("div","empty","<p>Log a bag first, then print its label.</p>")); return; }
+  q.forEach(function(b){
+    var row = el("label","lbl-pick");
+    var cb = el("input");
+    cb.type = "checkbox";
+    cb.checked = !!picked[b.id];
+    cb.onchange = function(){ picked[b.id] = cb.checked; };
+    row.appendChild(cb);
+    var txt = el("div","lines");
+    txt.innerHTML = '<div class="l1">'+num(b.ml)+' '+unitLabel()+' · '+esc(shortDate(b.pumpedAt))+'</div>'+
+                    '<div class="l2">'+esc(b.id)+(b.printed?" · printed":"")+'</div>';
+    row.appendChild(txt);
+    box.appendChild(row);
+  });
+}
+
+function setupLabels(){
+  $("#selAll").onclick = function(){ fifo().forEach(function(b){ picked[b.id]=true; }); renderLabels(); };
+  $("#selNone").onclick = function(){ picked = {}; renderLabels(); };
+  $("#selNew").onclick = function(){ picked={}; fifo().forEach(function(b){ if(!b.printed) picked[b.id]=true; }); renderLabels(); };
+
+  $("#printBtn").onclick = function(){
+    var list = fifo().filter(function(b){ return picked[b.id]; });
+    if(!list.length){ toast("Tick at least one bag first."); return; }
+    var grid = $("#printGrid");
+    grid.innerHTML = "";
+    list.forEach(function(b){
+      var card = el("div","label");
+      var qr = el("div","qr");
+      card.appendChild(qr);
+      var t = el("div","t");
+      t.innerHTML = '<div class="big">'+num(b.ml)+' '+unitLabel()+'</div>'+
+                    esc(shortDate(b.pumpedAt))+'<br>'+esc(locName(b.location))+'<br>'+esc(b.id);
+      card.appendChild(t);
+      grid.appendChild(card);
+      qrInto(qr, "MILKSTASH:"+b.id, 58);
+    });
+    list.forEach(function(b){ b.printed = true; });
+    save();
+    setTimeout(function(){ window.print(); renderLabels(); }, 320);
+  };
+}
+
+/* ---------------- settings ---------------- */
+function setupSettings(){
+  function fill(){
+    $("#cFridge").value = state.cfg.fridge;
+    $("#cFreezer").value = state.cfg.freezer;
+    $("#cDeep").value = state.cfg.deep;
+    $("#cWarn").value = state.cfg.warn;
+    $("#cUse").value = state.cfg.dailyUse;
+    document.querySelectorAll("#unitSeg button").forEach(function(b){
+      b.setAttribute("aria-pressed", String(b.dataset.unit === state.cfg.unit));
+    });
+  }
+  window._fillCfg = fill;
+  fill();
+
+  document.querySelectorAll("#unitSeg button").forEach(function(b){
+    b.onclick = function(){
+      state.cfg.unit = b.dataset.unit;
+      fill(); save(); render();
+      if(window._drawQuick) window._drawQuick();
+      toast("Now showing " + (state.cfg.unit==="oz" ? "ounces" : "millilitres"));
+    };
+  });
+
+  $("#saveCfg").onclick = function(){
+    state.cfg.fridge = Math.max(1, Number($("#cFridge").value)||4);
+    state.cfg.freezer = Math.max(1, Number($("#cFreezer").value)||180);
+    state.cfg.deep = Math.max(1, Number($("#cDeep").value)||365);
+    state.cfg.warn = Math.max(1, Number($("#cWarn").value)||14);
+    state.cfg.dailyUse = Math.max(0, Number($("#cUse").value)||0);
+    save(); render(); fill(); toast("Settings saved.");
+  };
+
+  $("#wipe").onclick = function(){
+    if(!confirm("Delete every bag and reset settings? This cannot be undone.")) return;
+    state.bags = [];
+    picked = {};
+    save(); render(); toast("All cleared.");
+  };
+}
+
+/* ---------------- nav ---------------- */
+function go(view){
+  document.querySelectorAll("nav.tabs button").forEach(function(b){
+    b.setAttribute("aria-selected", String(b.dataset.view===view));
+  });
+  document.querySelectorAll(".view").forEach(function(v){
+    v.classList.toggle("on", v.id === "v"+"-"+view);
+  });
+  if(view!=="scan") stopCam();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function setupNav(){
+  document.querySelectorAll("nav.tabs button").forEach(function(b){
+    b.onclick = function(){ go(b.dataset.view); };
+  });
+  document.querySelectorAll(".chip[data-filter]").forEach(function(c){
+    c.onclick = function(){
+      filter = c.dataset.filter;
+      document.querySelectorAll(".chip[data-filter]").forEach(function(x){
+        x.setAttribute("aria-pressed", String(x===c));
+      });
+      renderList();
+    };
+  });
+  $("#scrim").onclick = function(e){ if(e.target === $("#scrim")) closeSheet(); };
+  document.addEventListener("keydown", function(e){ if(e.key==="Escape") closeSheet(); });
+}
+
+/* ---------------- boot ---------------- */
+(async function boot(){
+  await load();
+  setupNav();
+  setupAdd();
+  setupScan();
+  setupLabels();
+  setupSettings();
+  render();
+  if(memoryOnly) toast("Saving is off in this preview. Notes stay for this session only.");
+  setInterval(function(){ renderAlerts(); renderList(); }, 60000);
+})();
+
+})();
+</script>
+</body>
+</html>
